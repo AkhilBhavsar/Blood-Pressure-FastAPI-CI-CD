@@ -2,12 +2,12 @@
 fastapi
 uvicorn
 jinja2
+python-multipart
 
 # Testing
 pytest
 pytest-cov
 behave
-fastapi[testclient]
 httpx
 
 # Code quality
