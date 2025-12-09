@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Blood Pressure Category Calculator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      :root {
+        --low: #9b59b6;      /* purple  */
+        --ideal: #27ae60;    /* green   */
+        --pre: #f1c40f;      /* yellow  */
+        --high: #e74c3c;     /* red     */
+        --bg: #f4f6f9;
+        --card: #ffffff;
+        --text-main: #2c3e50;
+      }
+
+      * {
+        box-sizing: border-box;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: radial-gradient(circle at top left, #e0f7fa, #f4f6f9);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+      }
+
+      .card {
+        background: var(--card);
+        border-radius: 18px;
+        box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+        max-width: 520px;
+        width: 100%;
+        padding: 28px 28px 24px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.6rem;
+        color: var(--text-main);
+      }
+
+      .subtitle {
+        margin: 0 0 20px;
+        color: #6b7280;
+        font-size: 0.9rem;
+      }
+
+      form {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: #4b5563;
+      }
+
+      input[type="number"] {
+        padding: 8px 10px;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        font-size: 0.95rem;
+        outline: none;
+        transition: border 0.15s, box-shadow 0.15s;
+      }
+
+      input[type="number"]:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+      }
+
+      .unit {
+        font-size: 0.78rem;
+        color: #9ca3af;
+      }
+
+      .full-row {
+        grid-column: 1 / -1;
+        display: flex;
+        justify-content: flex-end;
+      }
+
+      button {
+        border: none;
+        border-radius: 999px;
+        padding: 9px 18px;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        background: linear-gradient(90deg, #2563eb, #10b981);
+        color: #ffffff;
+        box-shadow: 0 8px 18px rgba(37, 99, 235, 0.35);
+        transition: transform 0.08s ease, box-shadow 0.08s ease;
+      }
+
+      button:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 10px 22px rgba(37, 99, 235, 0.4);
+      }
+
+      button:active {
+        transform: translateY(0);
+        box-shadow: 0 4px 10px rgba(37, 99, 235, 0.3);
+      }
+
+      .result,
+      .error {
+        border-radius: 14px;
+        padding: 10px 14px;
+        font-size: 0.95rem;
+        margin-bottom: 10px;
+      }
+
+      .error {
+        background: #fef2f2;
+        color: #b91c1c;
+        border: 1px solid #fecaca;
+      }
+
+      .result.low {
+        background: var(--low);
+        color: #ffffff;
+      }
+
+      .result.ideal {
+        background: var(--ideal);
+        color: #ffffff;
+      }
+
+      .result.pre {
+        background: var(--pre);
+        color: #1f2933;
+      }
+
+      .result.high {
+        background: var(--high);
+        color: #ffffff;
+      }
+
+      .hint {
+        font-size: 0.78rem;
+        color: #6b7280;
+        margin-top: 4px;
+      }
+
+      .grid-guide {
+        margin-top: 10px;
+        font-size: 0.8rem;
+        color: #6b7280;
+        display: grid;
+        grid-template-columns: 1.2fr 1.2fr;
+        gap: 6px 12px;
+      }
+
+      .tag {
+        display: inline-block;
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 0.75rem;
+        color: #ffffff;
+        margin-right: 4px;
+      }
+
+      .tag.low {
+        background: var(--low);
+      }
+      .tag.ideal {
+        background: var(--ideal);
+      }
+      .tag.pre {
+        background: var(--pre);
+        color: #1f2933;
+      }
+      .tag.high {
+        background: var(--high);
+      }
+
+      @media (max-width: 500px) {
+        form {
+          grid-template-columns: 1fr;
+        }
+        .full-row {
+          justify-content: stretch;
+        }
+        button {
+          width: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Blood Pressure Category</h1>
+      <p class="subtitle">
+        Enter systolic / diastolic values (mmHg).
+      </p>
+
+      {% if error %}
+      <div class="error">{{ error }}</div>
+      {% endif %}
+
+      {% if result %}
+      <div
+        class="result
+          {% if 'Low' in result %}low{% elif 'Ideal' in result %}ideal
+          {% elif 'Pre-high' in result %}pre
+          {% else %}high{% endif %}"
+      >
+        <strong>{{ result }}</strong>
+        <div>
+          For reading
+          <strong>{{ systolic }}/{{ diastolic }} mmHg</strong>.
+        </div>
+      </div>
+      {% endif %}
+
+      <form action="/calculate" method="post">
+        <div class="field">
+          <label for="systolic">Systolic (top number)</label>
+          <input
+            type="number"
+            id="systolic"
+            name="systolic"
+            min="70"
+            max="190"
+            required
+            value="{{ systolic }}"
+          />
+          <span class="unit">Range: 70 – 190 mmHg</span>
+        </div>
+
+        <div class="field">
+          <label for="diastolic">Diastolic (bottom number)</label>
+          <input
+            type="number"
+            id="diastolic"
+            name="diastolic"
+            min="40"
+            max="100"
+            required
+            value="{{ diastolic }}"
+          />
+          <span class="unit">Range: 40 – 100 mmHg</span>
+        </div>
+
+        <div class="full-row">
+          <button type="submit">Check Category</button>
+        </div>
+      </form>
+
+      <div class="hint">
+        Systolic must be higher than diastolic.
+      </div>
+
+      <div class="grid-guide">
+        <div>
+          <span class="tag low">Low</span>
+          40–59 diastolic and &lt; 90 systolic
+        </div>
+        <div>
+          <span class="tag ideal">Ideal</span> green band in the chart (e.g.
+          100/70)
+        </div>
+        <div>
+          <span class="tag pre">Pre-high</span> yellow band (e.g. 100/80,
+          130/78)
+        </div>
+        <div>
+          <span class="tag high">High</span> red band (e.g. ≥140 systolic or
+          ≥90 diastolic)
+        </div>
+      </div>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,18 @@
+# Application
+fastapi
+uvicorn
+jinja2
+
+# Testing
+pytest
+pytest-cov
+behave
+fastapi[testclient]
+httpx
+
+# Code quality
+flake8
+
+# Security
+bandit
+pip-audit
