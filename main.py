@@ -9,27 +9,23 @@ templates = Jinja2Templates(directory="templates")
 
 def classify_blood_pressure(systolic: int, diastolic: int) -> str:
     """
-    Classify blood pressure using the chart (ranges 70–190 / 40–100).
+    Classify a blood pressure reading using the assignment chart.
 
-    Diastolic bands (mmHg):
-      D1: 40–59
-      D2: 60–79
-      D3: 80–89
-      D4: 90–100
+    The function maps a (systolic, diastolic) pair into one of four categories:
+    - "Low blood pressure"
+    - "Ideal blood pressure"
+    - "Pre-high blood pressure"
+    - "High blood pressure"
 
-    Systolic bands (mmHg):
-      S1: 70–89
-      S2: 90–119
-      S3: 120–139
-      S4: 140–190
+    The ranges are:
+      * Systolic: 70–190 mmHg (inclusive)
+      * Diastolic: 40–100 mmHg (inclusive)
+      * Systolic must be strictly greater than diastolic.
 
-    Colours from the chart:
-      - Purple  (low)
-      - Green   (ideal)
-      - Yellow  (pre-high)
-      - Red     (high)
+    The logic is implemented by splitting systolic and diastolic values into the
+    coloured bands shown on the chart and returning the corresponding label.
+    Values outside the allowed ranges, or where systolic ≤ diastolic, raise ValueError.
     """
-
     # Validate overall allowed range
     if not (70 <= systolic <= 190):
         raise ValueError("Systolic must be between 70 and 190 mmHg.")

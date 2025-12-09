@@ -1,3 +1,10 @@
+"""
+BDD step definitions for the blood pressure calculator.
+
+These steps are used by behave to implement the feature that verifies that
+a 100/80 reading is classified as pre-high blood pressure via the web UI.
+"""
+
 from behave import given, when, then
 from fastapi.testclient import TestClient
 from main import app

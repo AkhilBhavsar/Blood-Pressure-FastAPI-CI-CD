@@ -1,7 +1,14 @@
+"""
+Unit tests for the core classification function.
+
+Covers valid categories (low / ideal / pre-high / high), out-of-range values,
+and boundary cases where systolic must be higher than diastolic.
+"""
+
 import os
 import sys
 
-# Make sure the project root (where main.py lives) is on sys.path
+
 sys.path.append(os.path.dirname(os.path.dirname(__file__)))
 
 from main import classify_blood_pressure
@@ -48,6 +55,7 @@ def test_out_of_range_values(systolic, diastolic):
 def test_systolic_must_be_greater_than_diastolic():
     with pytest.raises(ValueError):
         classify_blood_pressure(80, 80)
+
 
 def test_boundary_cases():
     # Lower systolic boundary in low range
