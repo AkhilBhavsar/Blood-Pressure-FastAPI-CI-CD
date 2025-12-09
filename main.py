@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
@@ -68,6 +68,32 @@ def classify_blood_pressure(systolic: int, diastolic: int) -> str:
     else:  # 90 <= diastolic <= 100
         # Entire 90–100 band is red in the chart
         return "High blood pressure"
+
+
+@app.get("/api/classify")
+async def api_classify(systolic: int, diastolic: int):
+    """
+    JSON API endpoint that classifies a blood pressure reading.
+
+    Returns:
+        {
+            "systolic": <int>,
+            "diastolic": <int>,
+            "category": "<text>"
+        }
+
+    If the reading is invalid (e.g. out of range or systolic <= diastolic),
+    a 400 Bad Request is returned with the error message.
+    """
+    try:
+        category = classify_blood_pressure(systolic, diastolic)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {
+        "systolic": systolic,
+        "diastolic": diastolic,
+        "category": category,
+    }
 
 
 @app.get("/", response_class=HTMLResponse)

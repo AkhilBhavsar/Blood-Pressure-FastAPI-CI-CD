@@ -35,3 +35,15 @@ python3 -m venv .venv
 source .venv/bin/activate
 
 pip install -r requirements.txt
+
+
+## JSON API endpoint
+
+In addition to the HTML form, the application exposes a small JSON API:
+
+```http
+GET /api/classify?systolic=<int>&diastolic=<int>
+
+Example: (.venv) akhil@Akhils-MacBook-Air bp_app % curl "http://127.0.0.1:8000/api/classify?systolic=100&diastolic=80"
+
+Response: {"systolic":100,"diastolic":80,"category":"Pre-high blood pressure"}% 
