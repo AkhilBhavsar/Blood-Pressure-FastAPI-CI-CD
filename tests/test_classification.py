@@ -48,3 +48,16 @@ def test_out_of_range_values(systolic, diastolic):
 def test_systolic_must_be_greater_than_diastolic():
     with pytest.raises(ValueError):
         classify_blood_pressure(80, 80)
+
+def test_boundary_cases():
+    # Lower systolic boundary in low range
+    assert classify_blood_pressure(70, 50) == "Low blood pressure"
+
+    # Boundary between low and ideal (systolic = 90, diastolic in 40–59)
+    assert classify_blood_pressure(90, 59) == "Ideal blood pressure"
+
+    # Boundary between ideal and pre-high (systolic = 120, diastolic in 60–79)
+    assert classify_blood_pressure(120, 79) == "Pre-high blood pressure"
+
+    # Boundary between pre-high and high (systolic = 140, diastolic in 80–89)
+    assert classify_blood_pressure(140, 89) == "High blood pressure"
