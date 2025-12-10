@@ -76,8 +76,8 @@ jobs:
       - name: Run E2E HTTP tests against QA app
         run: pytest tests_e2e
 
-      - name: Placeholder - Performance tests (to be added)
-        run: echo "Performance tests will run here in the next step."
+      - name: Run performance tests against QA app
+        run: pytest -s tests_performance
 
       - name: Placeholder - Security checks (to be added)
         run: echo "Security checks will run here in the next step."
