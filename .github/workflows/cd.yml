@@ -68,13 +68,13 @@ jobs:
 
       # TODO: Later this will be a real deploy to Azure QA.
       # For now, we will just start the app locally and add tests in next steps.
-      - name: Start application (QA placeholder)
+      - name: Start application (QA)
         run: |
           nohup uvicorn main:app --host 0.0.0.0 --port 8000 >/dev/null 2>&1 &
           sleep 5
 
-      - name: Placeholder - E2E tests (to be added)
-        run: echo "E2E tests will run here in the next step."
+      - name: Run E2E HTTP tests against QA app
+        run: pytest tests_e2e
 
       - name: Placeholder - Performance tests (to be added)
         run: echo "Performance tests will run here in the next step."
