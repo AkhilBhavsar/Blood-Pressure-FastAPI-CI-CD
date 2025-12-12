@@ -45,42 +45,38 @@ jobs:
       - name: Dependency security scan (pip-audit)
         run: pip-audit
 
-  deploy-to-qa:
-    name: Deploy to QA environment
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    environment:
-      name: qa
+deploy-to-qa:
+  needs: build-and-test
+  runs-on: ubuntu-latest
+  environment:
+    name: qa
 
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+    - name: Install dependencies
+      run: pip install -r requirements.txt
 
-      # TODO: Later this will be a real deploy to Azure QA.
-      # For now, we will just start the app locally and add tests in next steps.
-      - name: Start application (QA)
-        run: |
-          nohup uvicorn main:app --host 0.0.0.0 --port 8000 >/dev/null 2>&1 &
-          sleep 5
+    - name: Start QA server and run E2E/perf/security tests
+      run: |
+        set -e
 
-      - name: Run E2E HTTP tests against QA app
-        run: pytest tests_e2e
+        uvicorn main:app --host 0.0.0.0 --port 8000 &
+        SERVER_PID=$!
 
-      - name: Run performance tests against QA app
-        run: pytest -s tests_performance
+        sleep 3
 
-      - name: Run security checks against QA app
-        run: pytest tests_security
+        trap "kill $SERVER_PID" EXIT
+
+        pytest tests_e2e
+        pytest -s tests_performance
+        pytest tests_security
 
   deploy-to-prod:
     name: Deploy to Production environment
