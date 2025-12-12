@@ -43,6 +43,12 @@ jobs:
 
       - name: Dependency security scan (pip-audit)
         run: pip-audit
+           
+      - name: Ensure QA Web App is started
+        run: |
+          az webapp start \
+            --resource-group rg-bp-app \
+            --name bp-calculator-qa
 
   deploy-to-qa:
     name: Deploy to QA (runner) + Azure QA
@@ -104,6 +110,12 @@ jobs:
             --src-path app.zip \
             --type zip \
             --restart true
+            
+      - name: Ensure Prod Web App is started
+        run: |
+          az webapp start \
+            --resource-group rg-bp-app \
+            --name bp-calculator-prod
 
   deploy-to-prod:
     name: Deploy to Azure Production
