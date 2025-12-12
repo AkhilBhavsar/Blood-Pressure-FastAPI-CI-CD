@@ -1,10 +1,7 @@
 name: CD
 
 on:
-  # Manual trigger for demo / controlled releases
   workflow_dispatch:
-
-  # Optional: tag-based releases like v1.0.0
   push:
     tags:
       - "v*.*.*"
@@ -33,8 +30,8 @@ jobs:
 
       - name: Unit tests with coverage (pytest)
         run: |
-          pytest tests --maxfail=1 --disable-warnings \
-                 --cov=main --cov-report=term-missing --cov-fail-under=80
+          pytest --maxfail=1 --disable-warnings \
+                 --cov=. --cov-report=term-missing --cov-fail-under=80
 
       - name: BDD tests (behave)
         run: behave
@@ -46,7 +43,7 @@ jobs:
         run: pip-audit
 
   deploy-to-qa:
-    name: Deploy to QA environment
+    name: Deploy to Azure QA and run E2E/perf/security
     needs: build-and-test
     runs-on: ubuntu-latest
     environment:
@@ -61,52 +58,76 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
+      - name: Install dependencies (for tests)
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # For now we start the app locally on the runner and run tests against it.
-      # Later this will be replaced with a real Azure QA deployment.
-      - name: Start QA server and run E2E/perf/security tests
-        env:
-          BASE_URL: http://127.0.0.1:8000
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create deployment package
         run: |
-          set -e
+          zip -r app.zip . -x ".git/*" ".github/*" ".venv/*" "__pycache__/*"
 
-          echo "Starting FastAPI app on $BASE_URL ..."
-          uvicorn main:app --host 0.0.0.0 --port 8000 &
-          SERVER_PID=$!
+      - name: Deploy to QA Web App via az webapp deploy
+        run: |
+          az webapp deploy \
+            --resource-group rg-bp-app \
+            --name bp-calculator-qa \
+            --src-path app.zip \
+            --type zip \
+            --restart true
 
-          # Give the server time to start
-          sleep 3
+      - name: Wait for QA deployment to warm up
+        run: sleep 20
 
-          # Ensure the server is killed when this step finishes (success or failure)
-          trap "kill $SERVER_PID" EXIT
+      - name: Run E2E HTTP tests against Azure QA
+        env:
+          BP_APP_BASE_URL: "https://bp-calculator-qa-cfd4eca5dwbffbc0.westeurope-01.azurewebsites.net"
+        run: pytest tests_e2e
 
-          echo "Running E2E HTTP tests against $BASE_URL ..."
-          pytest tests_e2e
+      - name: Run performance tests against Azure QA
+        env:
+          BP_APP_BASE_URL: "https://bp-calculator-qa-cfd4eca5dwbffbc0.westeurope-01.azurewebsites.net"
+        run: pytest -s tests_performance
 
-          echo "Running performance tests ..."
-          pytest -s tests_performance
-
-          echo "Running security checks ..."
-          pytest tests_security
+      - name: Run security tests against Azure QA
+        env:
+          BP_APP_BASE_URL: "https://bp-calculator-qa-cfd4eca5dwbffbc0.westeurope-01.azurewebsites.net"
+        run: pytest tests_security
 
   deploy-to-prod:
-    name: Deploy to Production environment
+    name: Deploy to Azure Production
     needs: deploy-to-qa
     runs-on: ubuntu-latest
     environment:
-      name: production
+      name: production   # you already set this with an approval gate in GitHub
 
     steps:
       - name: Check out code
         uses: actions/checkout@v4
 
-      # TODO: Later will deploy the app to Azure Web App (prod)
-      - name: Placeholder - Deploy to production
+      - name: Azure login
+        uses: azure/login@v2
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Create deployment package
         run: |
-          echo "Production deployment gate has been approved."
-          echo "This is where the real Azure Web App deployment would run."
-          echo "For the assignment, this acts as the final gated production step."
+          zip -r app.zip . -x ".git/*" ".github/*" ".venv/*" "__pycache__/*"
+
+      - name: Deploy to Prod Web App via az webapp deploy
+        run: |
+          az webapp deploy \
+            --resource-group rg-bp-app \
+            --name bp-calculator-prod \
+            --src-path app.zip \
+            --type zip \
+            --restart true
+
+      - name: Smoke test home page on prod
+        run: |
+          curl -f https://bp-calculator-prod-gsfrdnbva8g6htf3.westeurope-01.azurewebsites.net/ || exit 1
