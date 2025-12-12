@@ -33,8 +33,8 @@ jobs:
 
       - name: Unit tests with coverage (pytest)
         run: |
-          pytest --maxfail=1 --disable-warnings \
-                 --cov=. --cov-report=term-missing --cov-fail-under=80
+          pytest tests --maxfail=1 --disable-warnings \
+                 --cov=main --cov-report=term-missing --cov-fail-under=80
 
       - name: BDD tests (behave)
         run: behave
@@ -66,21 +66,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # TODO: Later this will be a real deploy to Azure QA.
-      # For now, we will just start the app locally and add tests in next steps.
-      - name: Start application (QA)
+      # For now we start the app locally on the runner and run tests against it.
+      # Later this will be replaced with a real Azure QA deployment.
+      - name: Start QA server and run E2E/perf/security tests
+        env:
+          BASE_URL: http://127.0.0.1:8000
         run: |
-          nohup uvicorn main:app --host 0.0.0.0 --port 8000 >/dev/null 2>&1 &
-          sleep 5
+          set -e
 
-      - name: Run E2E HTTP tests against QA app
-        run: pytest tests_e2e
+          echo "Starting FastAPI app on $BASE_URL ..."
+          uvicorn main:app --host 0.0.0.0 --port 8000 &
+          SERVER_PID=$!
 
-      - name: Run performance tests against QA app
-        run: pytest -s tests_performance
+          # Give the server time to start
+          sleep 3
 
-        - name: Run security checks against QA app
-        run: pytest tests_security
+          # Ensure the server is killed when this step finishes (success or failure)
+          trap "kill $SERVER_PID" EXIT
+
+          echo "Running E2E HTTP tests against $BASE_URL ..."
+          pytest tests_e2e
+
+          echo "Running performance tests ..."
+          pytest -s tests_performance
+
+          echo "Running security checks ..."
+          pytest tests_security
 
   deploy-to-prod:
     name: Deploy to Production environment
@@ -95,4 +106,7 @@ jobs:
 
       # TODO: Later will deploy the app to Azure Web App (prod)
       - name: Placeholder - Deploy to production
-        run: echo "Would deploy to Azure production Web App here."
+        run: |
+          echo "Production deployment gate has been approved."
+          echo "This is where the real Azure Web App deployment would run."
+          echo "For the assignment, this acts as the final gated production step."
