@@ -43,12 +43,7 @@ jobs:
 
       - name: Dependency security scan (pip-audit)
         run: pip-audit
-           
-      - name: Ensure QA Web App is started
-        run: |
-          az webapp start \
-            --resource-group rg-bp-app \
-            --name bp-calculator-qa
+
 
   deploy-to-qa:
     name: Deploy to QA (runner) + Azure QA
@@ -71,7 +66,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # --- QA app running on the GitHub runner ---
+      # --- QA app running on the GitHub runner for E2E/perf/security ---
       - name: Start application locally for QA tests
         run: |
           nohup uvicorn main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
@@ -92,15 +87,31 @@ jobs:
           BP_APP_BASE_URL: http://127.0.0.1:8000
         run: pytest tests_security
 
-      # --- Then deploy the same build to Azure QA ---
+      # --- Login to Azure (must be before any az webapp commands) ---
       - name: Login to Azure
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
+      # Ensure Oryx actually builds from requirements.txt (so uvicorn is installed)
+      - name: Enable build during deployment (QA)
+        run: |
+          az webapp config appsettings set \
+            --resource-group rg-bp-app \
+            --name bp-calculator-qa \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
+
+      # Make sure QA Web App is started (prevents 403 "web app is stopped")
+      - name: Ensure QA Web App is started
+        run: |
+          az webapp start \
+            --resource-group rg-bp-app \
+            --name bp-calculator-qa
+
+      # --- Then deploy the same build to Azure QA ---
       - name: Package app as ZIP for Azure
         run: |
-          zip -r app.zip . -x '*.git*' '*.venv*' '__pycache__/*'
+          zip -r app.zip . -x ".git/*" ".github/*" ".venv/*" "__pycache__/*"
 
       - name: Deploy to Azure Web App (QA)
         run: |
@@ -110,19 +121,14 @@ jobs:
             --src-path app.zip \
             --type zip \
             --restart true
-            
-      - name: Ensure Prod Web App is started
-        run: |
-          az webapp start \
-            --resource-group rg-bp-app \
-            --name bp-calculator-prod
+
 
   deploy-to-prod:
     name: Deploy to Azure Production
     needs: deploy-to-qa
     runs-on: ubuntu-latest
     environment:
-      name: production   # you already set this with an approval gate in GitHub
+      name: production   # approval gate
 
     steps:
       - name: Check out code
@@ -132,6 +138,20 @@ jobs:
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      # Same build-during-deploy flag for prod
+      - name: Enable build during deployment (Prod)
+        run: |
+          az webapp config appsettings set \
+            --resource-group rg-bp-app \
+            --name bp-calculator-prod \
+            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
+
+      - name: Ensure Prod Web App is started
+        run: |
+          az webapp start \
+            --resource-group rg-bp-app \
+            --name bp-calculator-prod
 
       - name: Create deployment package
         run: |
