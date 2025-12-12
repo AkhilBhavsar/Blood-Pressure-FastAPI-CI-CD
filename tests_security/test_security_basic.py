@@ -67,3 +67,66 @@ def test_unexpected_path_returns_404_not_500():
     if response.text:
         assert "Traceback" not in response.text
         assert "Exception" not in response.text
+
+def test_many_invalid_requests_do_not_break_the_app():
+    """
+    Send a burst of invalid requests to simulate a simple abuse scenario.
+    The app should consistently return 400 responses and never 500s.
+    """
+    base_url = get_base_url()
+    with httpx.Client(timeout=5.0) as client:
+        for _ in range(50):
+            response = client.get(
+                f"{base_url}/api/classify",
+                params={"systolic": 9999, "diastolic": -10},
+            )
+            assert response.status_code == 400
+            body = response.json()
+            assert "detail" in body
+
+
+def test_error_responses_do_not_leak_stack_traces():
+    """
+    For deliberately bad inputs we should see controlled error messages,
+    not Python stack traces or internal framework details.
+    """
+    base_url = get_base_url()
+    responses = []
+
+    # Invalid range
+    responses.append(
+        httpx.get(
+            f"{base_url}/api/classify",
+            params={"systolic": 10, "diastolic": 5},
+            timeout=5.0,
+        )
+    )
+    # Equal systolic/diastolic
+    responses.append(
+        httpx.get(
+            f"{base_url}/api/classify",
+            params={"systolic": 80, "diastolic": 80},
+            timeout=5.0,
+        )
+    )
+
+    for resp in responses:
+        assert resp.status_code in (400, 422)
+        text = resp.text or ""
+        assert "Traceback" not in text
+        assert "File &quot;" not in text
+        assert "Exception" not in text
+
+
+def test_security_headers_present_on_responses():
+    """
+    All normal responses should include basic security headers such as
+    X-Frame-Options and X-Content-Type-Options.
+    """
+    base_url = get_base_url()
+    response = httpx.get(f"{base_url}/", timeout=5.0)
+
+    assert response.status_code == 200
+    headers = response.headers
+    assert headers.get("X-Frame-Options") == "DENY"
+    assert headers.get("X-Content-Type-Options") == "nosniff"
