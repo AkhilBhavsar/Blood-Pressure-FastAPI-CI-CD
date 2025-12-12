@@ -45,7 +45,7 @@ jobs:
         run: pip-audit
 
   deploy-to-qa:
-    name: Deploy to Azure QA and run E2E/perf/security
+    name: Deploy to QA (runner) + Azure QA
     needs: build-and-test
     runs-on: ubuntu-latest
     environment:
@@ -60,21 +60,43 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install dependencies (for tests)
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Azure login
+      # --- QA app running on the GitHub runner ---
+      - name: Start application locally for QA tests
+        run: |
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+          sleep 5
+
+      - name: Run E2E HTTP tests against local QA app
+        env:
+          BP_APP_BASE_URL: http://127.0.0.1:8000
+        run: pytest tests_e2e
+
+      - name: Run performance tests against local QA app
+        env:
+          BP_APP_BASE_URL: http://127.0.0.1:8000
+        run: pytest -s tests_performance
+
+      - name: Run security HTTP tests against local QA app
+        env:
+          BP_APP_BASE_URL: http://127.0.0.1:8000
+        run: pytest tests_security
+
+      # --- Then deploy the same build to Azure QA ---
+      - name: Login to Azure
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create deployment package
+      - name: Package app as ZIP for Azure
         run: |
-          zip -r app.zip . -x ".git/*" ".github/*" ".venv/*" "__pycache__/*"
+          zip -r app.zip . -x '*.git*' '*.venv*' '__pycache__/*'
 
-      - name: Deploy to QA Web App via az webapp deploy
+      - name: Deploy to Azure Web App (QA)
         run: |
           az webapp deploy \
             --resource-group rg-bp-app \
@@ -82,24 +104,6 @@ jobs:
             --src-path app.zip \
             --type zip \
             --restart true
-
-      - name: Wait for QA deployment to warm up
-        run: sleep 20
-
-      - name: Run E2E HTTP tests against Azure QA
-        env:
-          BP_APP_BASE_URL: "https://bp-calculator-qa-cfd4eca5dwbffbc0.westeurope-01.azurewebsites.net"
-        run: pytest tests_e2e
-
-      - name: Run performance tests against Azure QA
-        env:
-          BP_APP_BASE_URL: "https://bp-calculator-qa-cfd4eca5dwbffbc0.westeurope-01.azurewebsites.net"
-        run: pytest -s tests_performance
-
-      - name: Run security tests against Azure QA
-        env:
-          BP_APP_BASE_URL: "https://bp-calculator-qa-cfd4eca5dwbffbc0.westeurope-01.azurewebsites.net"
-        run: pytest tests_security
 
   deploy-to-prod:
     name: Deploy to Azure Production
