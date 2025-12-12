@@ -30,8 +30,10 @@ jobs:
 
       - name: Unit tests with coverage (pytest)
         run: |
-          pytest --maxfail=1 --disable-warnings \
-                 --cov=. --cov-report=term-missing --cov-fail-under=80
+          pytest tests \
+                 --maxfail=1 --disable-warnings \
+                 --cov=main --cov=tests \
+                 --cov-report=term-missing --cov-fail-under=80
 
       - name: BDD tests (behave)
         run: behave
