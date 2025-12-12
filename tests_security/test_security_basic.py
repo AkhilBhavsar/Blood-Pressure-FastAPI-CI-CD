@@ -68,6 +68,7 @@ def test_unexpected_path_returns_404_not_500():
         assert "Traceback" not in response.text
         assert "Exception" not in response.text
 
+
 def test_many_invalid_requests_do_not_break_the_app():
     """
     Send a burst of invalid requests to simulate a simple abuse scenario.
