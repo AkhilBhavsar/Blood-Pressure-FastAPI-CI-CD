@@ -127,6 +127,19 @@ jobs:
             --type zip \
             --restart true
 
-      - name: Smoke test home page on prod
+      - name: Smoke test home page on prod (with retries)
         run: |
-          curl -f https://bp-calculator-prod-gsfrdnbva8g6htf3.westeurope-01.azurewebsites.net/ || exit 1
+          URL="https://bp-calculator-prod-gsfrdnbva8g6htf3.westeurope-01.azurewebsites.net/"
+          echo "Checking $URL"
+          for i in {1..30}; do
+            echo "Attempt $i..."
+            if curl -fsS "$URL" > /dev/null; then
+              echo "App is healthy!"
+              exit 0
+            fi
+            echo "App not ready yet (HTTP error), waiting 10s..."
+            sleep 10
+          done
+          echo "ERROR: App did not become healthy in time"
+          exit 1
+
