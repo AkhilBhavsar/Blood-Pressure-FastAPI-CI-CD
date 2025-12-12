@@ -79,8 +79,8 @@ jobs:
       - name: Run performance tests against QA app
         run: pytest -s tests_performance
 
-      - name: Placeholder - Security checks (to be added)
-        run: echo "Security checks will run here in the next step."
+      - name: Run security checks against QA app
+        run: pytest tests_security
 
   deploy-to-prod:
     name: Deploy to Production environment
