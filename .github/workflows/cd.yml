@@ -98,14 +98,25 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Azure login
         uses: azure/login@v2
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Create deployment package
+      - name: Install dependencies into .python_packages for Azure
         run: |
-          zip -r app.zip . -x ".git/*" ".github/*" ".venv/*" "__pycache__/*"
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt --target ".python_packages/lib/site-packages"
+
+      - name: Create deployment package (include .python_packages)
+        run: |
+          zip -r app.zip . \
+            -x ".git/*" ".github/*" ".venv/*" "**/__pycache__/*"
 
       - name: Deploy to Prod Web App via az webapp deploy
         run: |
