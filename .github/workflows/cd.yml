@@ -1,0 +1,98 @@
+name: CD
+
+on:
+  # Manual trigger for demo / controlled releases
+  workflow_dispatch:
+
+  # Optional: tag-based releases like v1.0.0
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-and-test:
+    name: Build and test (reuse CI checks)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Lint (flake8)
+        run: flake8 .
+
+      - name: Unit tests with coverage (pytest)
+        run: |
+          pytest --maxfail=1 --disable-warnings \
+                 --cov=. --cov-report=term-missing --cov-fail-under=80
+
+      - name: BDD tests (behave)
+        run: behave
+
+      - name: Security scan (Bandit)
+        run: bandit -r main.py
+
+      - name: Dependency security scan (pip-audit)
+        run: pip-audit
+
+  deploy-to-qa:
+    name: Deploy to QA environment
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    environment:
+      name: qa
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # TODO: Later this will be a real deploy to Azure QA.
+      # For now, we will just start the app locally and add tests in next steps.
+      - name: Start application (QA)
+        run: |
+          nohup uvicorn main:app --host 0.0.0.0 --port 8000 >/dev/null 2>&1 &
+          sleep 5
+
+      - name: Run E2E HTTP tests against QA app
+        run: pytest tests_e2e
+
+      - name: Run performance tests against QA app
+        run: pytest -s tests_performance
+
+      - name: Run security checks against QA app
+        run: pytest tests_security
+
+  deploy-to-prod:
+    name: Deploy to Production environment
+    needs: deploy-to-qa
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # TODO: Later will deploy the app to Azure Web App (prod)
+      - name: Placeholder - Deploy to production
+        run: echo "Would deploy to Azure production Web App here."

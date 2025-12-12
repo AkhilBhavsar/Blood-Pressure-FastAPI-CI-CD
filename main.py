@@ -1,8 +1,52 @@
+import logging
+from time import perf_counter
+
 from fastapi import FastAPI, Request, Form, HTTPException
+from fastapi.middleware import Middleware
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.base import BaseHTTPMiddleware
 
-app = FastAPI(title="Blood Pressure Category Calculator")
+
+logger = logging.getLogger("bp_app")
+logging.basicConfig(level=logging.INFO)
+
+
+class RequestLoggingMiddleware(BaseHTTPMiddleware):
+    """
+    Middleware that logs each HTTP request with method, path, status code
+    and response time in milliseconds. It also adds a couple of basic
+    security headers to every response.
+
+    These logs are visible locally, in CI/CD logs, and in Azure when the
+    application is deployed to App Service / Application Insights.
+    """
+
+    async def dispatch(self, request, call_next):
+        start = perf_counter()
+        response = await call_next(request)
+        duration_ms = (perf_counter() - start) * 1000
+
+        logger.info(
+            "%s %s -> %d (%.2f ms)",
+            request.method,
+            request.url.path,
+            response.status_code,
+            duration_ms,
+        )
+
+        # Basic security headers
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+
+        return response
+
+
+middleware = [Middleware(RequestLoggingMiddleware)]
+app = FastAPI(
+    title="Blood Pressure Category Calculator",
+    middleware=middleware,
+)
 
 templates = Jinja2Templates(directory="templates")
 
